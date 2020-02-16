@@ -1,0 +1,22 @@
+# Airfoil Data
+import numpy as np
+import matplotlib.pyplot as plt
+import sklearn
+from sklearn.preprocessing import PolynomialFeatures
+data= np.loadtxt(r'airfoil_self_noise.dat',delimiter='\t')
+## Randomize the given data for better results
+np.random.shuffle(data)
+from numpy import*
+## Now normalize the given data
+data=(data-mean(data,axis=0))/std(data,axis=0)
+
+## Divide the data in 80% as Training data and remaining as Testing data
+train_set1=data[0:int(0.8*len(data))]
+test_set1=data[int(0.8*len(data)):]
+
+## User input for No. of Outputs given in the data
+noutputs = input("No. of Outputs:")
+
+[pred_test,op_test_final,A]=my_regression(train_set1,test_set1,noutputs)
+MSE=((pred_test-op_test_final)**2).mean(axis=0)
+print("MSE of Overall Data:", MSE)
