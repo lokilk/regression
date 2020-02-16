@@ -1,0 +1,112 @@
+def my_regression(TrainX,TestX,noutputs):
+    MSE_Linear=line(TrainX,TestX,noutputs)
+    MSE_Poly=pol(TrainX,TestX,noutputs)
+    print("MSE of Linear: ",MSE_Linear)
+    print("MSE of Poly: ",MSE_Poly)
+    ##Now we will choose the best model from the cross validation and regularization results
+    if MSE_Linear<(min(MSE_Poly)):
+        ## Use Linear Model to predict overall MSE
+        unit1=np.ones(shape = train_set1.shape[0]).reshape(-1,1)
+        train_set2=np.concatenate((unit1,train_set1),1)
+        unit2=np.ones(shape = test_set1.shape[0]).reshape(-1,1)
+        test_set2=np.concatenate((unit2,test_set1),1)
+        
+        op_train_final=train_set2[:,-int(noutputs):]
+        train_final=train_set2[:,:-int(noutputs)]
+        op_test_final=test_set2[:,-int(noutputs):]
+        test_final=test_set2[:,:-int(noutputs)]
+        w=(np.linalg.pinv(np.transpose(train_final)@(train_final)))@(np.transpose(train_final))@(op_train_final)
+        pred_test=test_final@w
+        MSE=(sum((pred_test-op_test_final)**2))/(test_final.shape[0])
+        print(MSE)
+    else:
+        ## Use Polynomial Model to predict overall MSE
+        # Now find out the actual parameters from best model
+        deg = ([2,3])
+        lambda1=([0.1, 1])
+        A=min(MSE_Poly)
+        mesh=np.array(np.meshgrid(deg, lambda1)).T.reshape(-1,2)
+        idx=np.argmin(MSE_Poly)
+        best_deg=mesh[idx,0]
+        best_lambda1=mesh[idx,1]
+        print("Best Polynomial Degree: " ,best_deg)
+        print("Best Regularizer(lambda): ",best_lambda1)
+        op_train_final=train_set1[:,-int(noutputs):]
+        train_final=train_set1[:,:-int(noutputs)]
+        op_test_final=test_set1[:,-int(noutputs):]
+        test_final=test_set1[:,:-int(noutputs)]
+
+        polynomial= PolynomialFeatures(int(best_deg))
+        train_poly = polynomial.fit_transform(train_final)
+        test_poly = polynomial.fit_transform(test_final)
+        w=(np.linalg.pinv(np.transpose(train_poly)@(train_poly)+(best_lambda1*np.eye(train_poly.shape[1])))@(np.transpose(train_poly))@(op_train_final))
+        pred_test=test_poly@w
+#         MSE=(sum((pred_test-op_test_final)**2))/(test_final.shape[0])
+#         print("MSE of Overall Data:", MSE)
+        return (pred_test,op_test_final,A)
+    
+def line(TrainX,TestX,noutputs):
+    unit1=np.ones(shape = train_set1.shape[0]).reshape(-1,1)
+    train_set2=np.concatenate((unit1,train_set1),1)
+    unit2=np.ones(shape = test_set1.shape[0]).reshape(-1,1)
+    test_set2=np.concatenate((unit2,test_set1),1)
+
+    ## 5-fold Cross-Validation for linear regression
+    wl=[]
+    MSE_l=[]
+    for i in range(1,6):
+        n=len(train_set2)
+        folds=5
+        
+        ## Distribute the 80% Training data in 5 folds and split them in different matrices
+        test_split1=train_set2[n*(i-1)//folds:n*i//folds]
+        train_split1=np.delete(train_set2,np.s_[n*(i-1)//folds:n*i//folds:1],0)
+        ## Remove the output column from Training and testing data set
+        op_train_split1=train_split1[:,-int(noutputs):]
+        train_split1=train_split1[:,:-int(noutputs)]
+        op_test_split1=test_split1[:,-int(noutputs):]
+        test_split1=test_split1[:,:-int(noutputs)]
+        
+        ## Now find out the respective weights for each input parameter
+        w=(np.linalg.pinv(np.transpose(train_split1)@(train_split1)))@(np.transpose(train_split1))@(op_train_split1)
+        wl.append(w)
+        
+        ## By using test data set and weights, find out the predicted output of testing data set
+        pred_split1=test_split1@w
+        
+        ## Compare the predicted output with actual output of testing data to get the Mean Squared Error(MSE)
+        MSE=(sum((pred_split1-op_test_split1)**2))/(test_split1.shape[0])
+        MSE_l.append(MSE)
+    return (average(MSE_l))
+
+def pol(TrainX,TestX,noutputs):
+    ## Import scikit learn toolbox for Polynomial features
+    import sklearn
+    from sklearn.preprocessing import PolynomialFeatures
+    MSE_fun=[]
+    ## We are performing algorithm for Quadratic and Cubic polynomial
+    for deg in range(2,4):
+        ## The lambda is regularizer
+        for lambda1 in [0.1,1]:
+            MSE_l=[]
+            ## Perform similar 5-fold cross validation for polynimial regression
+            for i in range(1,6):
+                n=len(train_set1)
+                folds=5
+                test_split1=train_set1[n*(i-1)//folds:n*i//folds]
+                train_split1=np.delete(train_set1,np.s_[n*(i-1)//folds:n*i//folds:1],0)
+                op_train_split1=train_split1[:,-int(noutputs):]
+                train_split1=train_split1[:,:-int(noutputs)]
+                op_test_split1=test_split1[:,-int(noutputs):]
+                test_split1=test_split1[:,:-int(noutputs)]
+                polynomial= PolynomialFeatures(deg)
+                train_split_poly = polynomial.fit_transform(train_split1)
+                test_split_poly = polynomial.fit_transform(test_split1)
+                w=(np.linalg.pinv(np.transpose(train_split_poly)@(train_split_poly)+(lambda1*np.eye(train_split_poly.shape[1])))@(np.transpose(train_split_poly))@(op_train_split1))
+                pred_split1=test_split_poly@w
+                #print(pred_split1)
+                MSE=(sum((pred_split1-op_test_split1)**2))/(test_split_poly.shape[0])
+                MSE_l.append(MSE)
+            MSE_fun_l=average(MSE_l)
+            MSE_fun.append(MSE_fun_l)
+    return(MSE_fun)
